@@ -1,0 +1,28 @@
+.github/workflows/release.yml
+  h_e08a86bb3a33a2 87,89-90,96
+  h_e08a86bb3a33a2 88,97
+README.md
+  h_e08a86bb3a33a2 60,62-64,68-69
+  s_c805e2d70226a5::t_89d38fb5dcae12 65-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64350488f28b5ffb5cedd6c94a5aa80fe0e49b1a",
+  "prompts": {},
+  "humans": {
+    "h_e08a86bb3a33a2": {
+      "author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_c805e2d70226a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8389926d-3964-4484-b40b-b5eb449788eb",
+        "model": "unknown"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  }
+}
