@@ -1,0 +1,36 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install XcodeGen
+              run: brew install xcodegen
+
+            - name: Generate project
+              run: xcodegen generate
+
+            - name: Build (Debug)
+              run: |
+                  xcodebuild \
+                    -project Fling.xcodeproj \
+                    -scheme Fling \
+                    -configuration Debug \
+                    -derivedDataPath build/DerivedData \
+                    -destination "generic/platform=macOS" \
+                    CODE_SIGN_IDENTITY=- \
+                    build

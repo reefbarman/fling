@@ -1,0 +1,103 @@
+name: Release
+
+# Push a version tag to publish a release:
+#   git tag v0.2.0 && git push origin v0.2.0
+on:
+    push:
+        tags: ["v*"]
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: macos-latest
+        # Optional signing secrets live in this environment. Without them the
+        # release is ad-hoc signed.
+        environment: release
+        env:
+            MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_DEV_CERT_P12_BASE64 }}
+            MACOS_CERT_PASSWORD: ${{ secrets.MACOS_DEV_CERT_PASSWORD }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Read version from tag
+              run: |
+                  VERSION="${GITHUB_REF_NAME#v}"
+                  if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+                    echo "::error::Tag $GITHUB_REF_NAME is not a version like v1.2.3"
+                    exit 1
+                  fi
+                  echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+            - name: Install XcodeGen
+              run: brew install xcodegen
+
+            - name: Import signing certificate
+              if: env.MACOS_CERT_P12_BASE64 != ''
+              run: |
+                  KEYCHAIN="$RUNNER_TEMP/fling-signing.keychain-db"
+                  KEYCHAIN_PASSWORD=$(openssl rand -hex 24)
+                  CERT="$RUNNER_TEMP/fling-signing.p12"
+                  WWDR="$RUNNER_TEMP/AppleWWDRCAG3.cer"
+                  printf '%s' "$MACOS_CERT_P12_BASE64" | base64 --decode > "$CERT"
+                  curl -fsSL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$WWDR"
+                  security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+                  security set-keychain-settings -lut 21600 "$KEYCHAIN"
+                  security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+                  security import "$WWDR" -k "$KEYCHAIN"
+                  security import "$CERT" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+                  rm -f "$CERT"
+                  security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+                  security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+                  IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk -F'"' '/Apple Development|Developer ID Application/ { print $2; exit }')
+                  if [ -z "$IDENTITY" ]; then
+                    echo "::error::No usable signing identity found in the imported certificate."
+                    exit 1
+                  fi
+                  echo "FLING_SIGN_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+                  echo "FLING_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+            - name: Build and package
+              env:
+                  FLING_BUILD_NUMBER: ${{ github.run_number }}
+              run: Scripts/package-release.sh "$VERSION"
+
+            - name: Remove signing keychain
+              if: always()
+              run: |
+                  if [ -n "${FLING_SIGN_KEYCHAIN:-}" ]; then
+                    security delete-keychain "$FLING_SIGN_KEYCHAIN" || true
+                  fi
+
+            - name: Publish GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  if [ -n "${FLING_SIGN_IDENTITY:-}" ]; then
+                    SIGNING="signed with an Apple Development certificate but not notarised"
+                  else
+                    SIGNING="ad-hoc signed and not notarised"
+                  fi
+                  cat > notes.md <<EOF
+                  ## Install
+
+                  Download **Fling-$VERSION.dmg** and drag Fling to Applications (or unzip **Fling-$VERSION.zip**). Universal build for Apple Silicon and Intel, macOS 14 or later.
+
+                  This build is $SIGNING, so macOS blocks the first launch. Either right-click Fling in Applications and choose **Open**, or run:
+
+                  \`\`\`bash
+                  xattr -dr com.apple.quarantine /Applications/Fling.app
+                  \`\`\`
+
+                  Then open **Settings → General** from the menu bar icon and click **Make Default…**.
+
+                  EOF
+                  PRERELEASE=""
+                  if [[ "$VERSION" == *-* ]]; then PRERELEASE="--prerelease"; fi
+                  gh release create "$GITHUB_REF_NAME" \
+                    dist/Fling-$VERSION.dmg dist/Fling-$VERSION.zip dist/SHA256SUMS.txt \
+                    --title "Fling $VERSION" \
+                    --notes-file notes.md \
+                    --generate-notes \
+                    $PRERELEASE

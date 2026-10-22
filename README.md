@@ -53,13 +53,29 @@ brew install xcodegen mise
 
 ## Install
 
+### Download
+
+Grab the latest `.dmg` or `.zip` from [Releases](https://github.com/reefbarman/fling/releases) and drag Fling into Applications. Builds are universal (Apple Silicon and Intel).
+
+Releases aren't notarised by Apple yet, so macOS blocks the first launch. Right-click Fling in Applications and choose **Open**, or run:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Fling.app
+```
+
+### From source
+
 ```bash
 git clone https://github.com/reefbarman/fling.git
 cd fling
 mise run install
 ```
 
-This builds a Release copy, installs it to `/Applications/Fling.app`, registers it with Launch Services and launches it. Then open **Settings → General** from the Fling menu bar icon and click **Make Default…** (or pick Fling under *System Settings → Desktop & Dock → Default web browser*).
+This builds a Release copy, installs it to `/Applications/Fling.app`, registers it with Launch Services and launches it.
+
+### Make it your default browser
+
+Open **Settings → General** from the Fling menu bar icon and click **Make Default…** (or pick Fling under *System Settings → Desktop & Dock → Default web browser*).
 
 On first launch Fling detects your installed browsers and Chrome profiles and creates targets for them.
 
@@ -137,7 +153,18 @@ mise run install    # Release build installed to /Applications
 - `project.yml` is the source of truth. `Fling.xcodeproj` is generated and not committed, so run `mise run generate` after cloning and whenever you add files.
 - Debug builds use the bundle id `com.tristan.fling.debug`, so they never take over link handling from the installed copy.
 - `open build/DerivedData/Build/Products/Debug/Fling.app --args -FlingOpenSettingsOnLaunch YES` opens Settings straight away.
+- `Scripts/package-release.sh 1.2.3` builds the release zip and dmg into `dist/`, exactly as CI does.
 - See [`AppBundle/ManualTesting.md`](AppBundle/ManualTesting.md) for manual test scenarios and [`CLAUDE.md`](CLAUDE.md) for an architecture overview.
+
+### Releasing
+
+Push a version tag and the [Release workflow](.github/workflows/release.yml) builds, packages and publishes a GitHub release:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Tags with a suffix (`v0.2.0-beta.1`) are published as pre-releases. Builds are ad-hoc signed by default. To sign with a real certificate, add `MACOS_DEV_CERT_P12_BASE64` (a base64-encoded `.p12`) and `MACOS_DEV_CERT_PASSWORD` as secrets in the repo's `release` environment.
 
 ### Project layout
 

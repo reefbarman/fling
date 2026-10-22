@@ -41,6 +41,8 @@ Meaning:
 - `release` → build the Release configuration
 - `install` → build Release, copy to `/Applications/Fling.app`, register it with LaunchServices, and launch it (this is the copy that handles clicked links)
 
+Releases: pushing a `v*` tag runs `.github/workflows/release.yml`, which calls `Scripts/package-release.sh <version>` (universal Release build, zip + dmg + SHA256SUMS in `dist/`) and publishes a GitHub release. Ad-hoc signed unless `MACOS_DEV_CERT_*` secrets exist in the `release` environment; never notarised. `.github/workflows/ci.yml` builds Debug on pushes to main and PRs.
+
 Debug builds use bundle id `com.tristan.fling.debug`, so they never take over as the default browser from the installed Release app (`com.tristan.fling`).
 
 ### Important rule
