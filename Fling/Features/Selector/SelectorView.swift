@@ -1,0 +1,398 @@
+import SwiftUI
+
+struct SelectorView: View {
+    @ObservedObject var coordinator: AppCoordinator
+    @ObservedObject var model: SelectorModel
+
+    static let width: CGFloat = 460
+
+    var body: some View {
+        Group {
+            if let context = coordinator.activeSelectorContext {
+                VStack(spacing: 0) {
+                    header(context)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 16)
+                        .padding(.bottom, 14)
+
+                    if let notice = notice {
+                        noticeBanner(notice)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 12)
+                    }
+
+                    targetGrid
+                        .padding(.horizontal, 14)
+
+                    rememberRow
+                        .padding(.horizontal, 18)
+                        .padding(.top, 14)
+                        .padding(.bottom, 14)
+
+                    Divider().opacity(0.5)
+
+                    footer
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                }
+                .frame(width: Self.width)
+                .sheet(isPresented: $model.isShowingRuleCreation) {
+                    RuleCreationSheet(
+                        url: context.originalURL,
+                        targets: model.targets,
+                        defaultTargetID: model.highlightedTarget?.id,
+                        onSave: { input in
+                            model.isShowingRuleCreation = false
+                            coordinator.saveRuleAndOpen(input)
+                        },
+                        onCancel: {
+                            model.isShowingRuleCreation = false
+                        }
+                    )
+                }
+            } else {
+                Color.clear.frame(width: Self.width, height: 1)
+            }
+        }
+        .background(SelectorBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Header
+
+    private func header(_ context: IncomingURLContext) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "link")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(context.originalURL.host(percentEncoded: false) ?? "Link")
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Text(Self.displayPath(for: context.originalURL))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                if let source = context.sourceApplication {
+                    Text("from \(source)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .help(context.originalURL.absoluteString)
+
+            HStack(spacing: 4) {
+                iconButton("doc.on.doc", help: "Copy URL (⌘C)") {
+                    coordinator.copyActiveSelectorURL()
+                }
+                iconButton("xmark", help: "Dismiss and copy URL (Esc)") {
+                    model.dismiss()
+                }
+            }
+        }
+    }
+
+    private func iconButton(_ systemName: String, help: String, action: @escaping () -> Void)
+        -> some View
+    {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
+                .background(Color.primary.opacity(0.06), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    // MARK: - Notices
+
+    private var notice: String? {
+        if coordinator.isActiveSelectorContextIncognitoUnavailable {
+            return "⌥ requested Chrome Incognito, but Google Chrome isn't installed. Pick a browser instead."
+        }
+        if let message = coordinator.lastErrorMessage, !message.isEmpty {
+            return message
+        }
+        return nil
+    }
+
+    private func noticeBanner(_ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 11.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Targets
+
+    @ViewBuilder
+    private var targetGrid: some View {
+        let targets = model.targets
+        if targets.isEmpty {
+            Text("No browsers configured. Add one in Settings.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 80)
+        } else {
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: 6),
+                    count: min(max(targets.count, 3), 4)
+                ),
+                spacing: 6
+            ) {
+                ForEach(Array(targets.enumerated()), id: \.element.id) { index, target in
+                    SelectorTargetTile(
+                        target: target,
+                        shortcut: index < 9 ? "\(index + 1)" : nil,
+                        isHighlighted: index == model.highlightedIndex
+                    ) {
+                        model.open(target)
+                    }
+                    .onHover { hovering in
+                        if hovering { model.highlightedIndex = index }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Remember
+
+    private var rememberRow: some View {
+        HStack(spacing: 8) {
+            Toggle(isOn: $model.remembersChoice) {
+                EmptyView()
+            }
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .disabled(model.rememberedDomain.isEmpty)
+
+            Text("Always open")
+                .foregroundStyle(model.remembersChoice ? .primary : .secondary)
+                .fixedSize()
+
+            if model.domainCandidates.count > 1 {
+                Menu {
+                    ForEach(model.domainCandidates, id: \.self) { domain in
+                        Button(domain) {
+                            model.rememberedDomain = domain
+                            model.remembersChoice = true
+                        }
+                    }
+                } label: {
+                    Text(model.rememberedDomain)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(maxWidth: 240, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+            } else {
+                Text(model.rememberedDomain)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(model.remembersChoice ? .primary : .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Text("here")
+                .foregroundStyle(model.remembersChoice ? .primary : .secondary)
+                .fixedSize()
+
+            Spacer(minLength: 4)
+
+            KeyCap("R")
+        }
+        .font(.system(size: 12))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !model.rememberedDomain.isEmpty { model.remembersChoice.toggle() }
+        }
+        .help("Save a rule for this domain (and its subdomains) when you choose a browser")
+    }
+
+    // MARK: - Footer
+
+    private var footer: some View {
+        HStack(spacing: 6) {
+            if coordinator.canOpenInChromeIncognito {
+                FooterButton(
+                    title: coordinator.isActiveSelectorContextForceIncognito
+                        ? "Retry Chrome Incognito" : "Open in Chrome Incognito",
+                    systemImage: "eye.slash",
+                    shortcut: "I"
+                ) {
+                    model.openInIncognito()
+                }
+            }
+
+            Spacer()
+
+            FooterButton(title: "Add Rule…", systemImage: "slider.horizontal.3", shortcut: nil) {
+                model.isShowingRuleCreation = true
+            }
+
+            if coordinator.pendingRequests.count > 0 {
+                Text("+\(coordinator.pendingRequests.count) queued")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.07), in: Capsule())
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// The URL minus scheme and host, so the header doesn't repeat itself.
+    static func displayPath(for url: URL) -> String {
+        var path = url.path(percentEncoded: false)
+        if let query = url.query(percentEncoded: false) { path += "?" + query }
+        if let fragment = url.fragment(percentEncoded: false) { path += "#" + fragment }
+        return path.isEmpty || path == "/" ? url.absoluteString : path
+    }
+}
+
+private struct SelectorTargetTile: View {
+    let target: BrowserTarget
+    let shortcut: String?
+    let isHighlighted: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Group {
+                    if let icon = target.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                    } else {
+                        Image(systemName: "globe")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 52, height: 52)
+                .scaleEffect(isHighlighted ? 1.06 : 1)
+
+                VStack(spacing: 1) {
+                    Text(target.displayName)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(target.subtitle.isEmpty ? " " : target.subtitle)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isHighlighted ? Color.accentColor.opacity(0.18) : Color.clear)
+            )
+            .overlay(alignment: .topTrailing) {
+                if let shortcut {
+                    KeyCap(shortcut).padding(6)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .animation(.easeOut(duration: 0.12), value: isHighlighted)
+        }
+        .buttonStyle(.plain)
+        .help(target.subtitle.isEmpty ? target.displayName : "\(target.displayName) — \(target.subtitle)")
+    }
+}
+
+private struct FooterButton: View {
+    let title: String
+    let systemImage: String
+    let shortcut: String?
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                Text(title)
+                if let shortcut { KeyCap(shortcut) }
+            }
+            .font(.system(size: 11.5, weight: .medium))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                Color.primary.opacity(isHovering ? 0.09 : 0),
+                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+    }
+}
+
+private struct KeyCap: View {
+    let label: String
+
+    init(_ label: String) {
+        self.label = label
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(.secondary)
+            .frame(minWidth: 15, minHeight: 15)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.18), lineWidth: 0.5)
+                    .background(
+                        Color.primary.opacity(0.05),
+                        in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            )
+    }
+}
+
+private struct SelectorBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .popover
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}

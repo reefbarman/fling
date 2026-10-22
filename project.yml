@@ -1,0 +1,41 @@
+name: Fling
+options:
+  minimumXcodeGenVersion: 2.38.0
+  createIntermediateGroups: true
+settings:
+  base:
+    PRODUCT_NAME: Fling
+    PRODUCT_BUNDLE_IDENTIFIER: com.tristan.fling
+    SWIFT_VERSION: 5.10
+    MACOSX_DEPLOYMENT_TARGET: 14.0
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+    GENERATE_INFOPLIST_FILE: NO
+    INFOPLIST_FILE: AppBundle/Info.plist
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ENABLE_HARDENED_RUNTIME: NO
+  configs:
+    # Separate identity so dev builds never take over as the default browser
+    # from the installed Release copy in /Applications.
+    Debug:
+      PRODUCT_BUNDLE_IDENTIFIER: com.tristan.fling.debug
+packages: {}
+targets:
+  Fling:
+    type: application
+    platform: macOS
+    sources:
+      - path: Fling
+        excludes:
+          - Infrastructure/System/DefaultBrowserRegistrationNotes.md
+    settings:
+      base:
+        PRODUCT_MODULE_NAME: Fling
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        OTHER_SWIFT_FLAGS:
+          - "$(inherited)"
+    scheme:
+      testTargets: []
+      gatherCoverageData: false

@@ -1,0 +1,41 @@
+[tasks.generate]
+description = "Regenerate the Xcode project from project.yml"
+run = "xcodegen generate"
+
+[tasks.build]
+description = "Build the Fling macOS app in Debug"
+run = "xcodebuild -project Fling.xcodeproj -scheme Fling -configuration Debug -derivedDataPath build/DerivedData build"
+
+[tasks.open]
+description = "Open the built Fling.app bundle"
+run = "open build/DerivedData/Build/Products/Debug/Fling.app"
+
+[tasks.start]
+description = "Regenerate, build, and open the app"
+run = "mise run clean && mise run generate && mise run build && mise run open"
+
+[tasks.clean]
+description = "Clean generated build products"
+run = "rm -rf build/DerivedData"
+
+[tasks.release]
+description = "Build the Fling macOS app in Release"
+run = "xcodebuild -project Fling.xcodeproj -scheme Fling -configuration Release -derivedDataPath build/DerivedData build"
+
+[tasks.install]
+description = "Build Release, install to /Applications, register it as the link handler, and launch it"
+run = """
+set -euo pipefail
+mise run generate
+mise run release
+pkill -x Fling || true
+rm -rf /Applications/Fling.app
+cp -R build/DerivedData/Build/Products/Release/Fling.app /Applications/Fling.app
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+# Only the /Applications copy should be a candidate link handler.
+for BUILT in build/DerivedData/Build/Products/*/Fling.app; do
+  "$LSREGISTER" -u "$BUILT" 2>/dev/null || true
+done
+"$LSREGISTER" -f -R /Applications/Fling.app
+open /Applications/Fling.app
+"""
