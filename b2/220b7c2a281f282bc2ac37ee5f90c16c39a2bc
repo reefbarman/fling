@@ -1,0 +1,29 @@
+.mise.toml
+  s_55abcfc64d967e::t_f5a9ff0793f7f1 1-41
+Fling/Domain/Models/BrowserTarget.swift
+  s_55abcfc64d967e::t_42c79de6de9793 1-46
+Fling/Features/Selector/SelectorModel.swift
+  s_55abcfc64d967e::t_045d3ecd06cd79 1-127
+Fling/Features/Selector/SelectorView.swift
+  s_55abcfc64d967e::t_8b5c2f653719ae 1-398
+Fling/Infrastructure/Browsers/BrowserLauncher.swift
+  s_55abcfc64d967e::t_bb6d265490b1b5 1-120
+project.yml
+  s_55abcfc64d967e::t_a63eebe584adcb 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2220b7c2a281f282bc2ac37ee5f90c16c39a2bc",
+  "prompts": {},
+  "sessions": {
+    "s_55abcfc64d967e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d3fb86df-e611-446f-bc6c-3e75ab8d992b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  }
+}
