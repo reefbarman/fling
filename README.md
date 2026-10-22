@@ -57,11 +57,16 @@ brew install xcodegen mise
 
 Grab the latest `.dmg` or `.zip` from [Releases](https://github.com/reefbarman/fling/releases) and drag Fling into Applications. Builds are universal (Apple Silicon and Intel).
 
-Releases aren't notarised by Apple yet, so macOS blocks the first launch. Right-click Fling in Applications and choose **Open**, or run:
+Releases aren't notarised by Apple yet, so the first launch shows **"Fling" Not Opened**. Click **Done**, then either:
 
-```bash
-xattr -dr com.apple.quarantine /Applications/Fling.app
-```
+- open **System Settings → Privacy & Security**, scroll to *"Fling" was blocked to protect your Mac*, click **Open Anyway** and confirm, or
+- run this in Terminal, then open Fling normally:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Fling.app
+  ```
+
+You only need to do this once per download. (On macOS 14, right-click Fling and choose **Open** also works.)
 
 ### From source
 

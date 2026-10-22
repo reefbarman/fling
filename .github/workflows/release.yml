@@ -84,11 +84,16 @@ jobs:
 
                   Download **Fling-$VERSION.dmg** and drag Fling to Applications (or unzip **Fling-$VERSION.zip**). Universal build for Apple Silicon and Intel, macOS 14 or later.
 
-                  This build is $SIGNING, so macOS blocks the first launch. Either right-click Fling in Applications and choose **Open**, or run:
+                  This build is $SIGNING, so the first launch shows **"Fling" Not Opened**. Click **Done**, then either:
+
+                  - open **System Settings → Privacy & Security**, scroll to *"Fling" was blocked to protect your Mac*, click **Open Anyway** and confirm, or
+                  - run this in Terminal, then open Fling normally:
 
                   \`\`\`bash
                   xattr -dr com.apple.quarantine /Applications/Fling.app
                   \`\`\`
+
+                  You only need to do this once per download.
 
                   Then open **Settings → General** from the menu bar icon and click **Make Default…**.
 
