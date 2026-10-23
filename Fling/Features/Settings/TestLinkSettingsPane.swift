@@ -12,7 +12,7 @@ struct TestLinkSettingsPane: View {
             SettingsPaneHeader(
                 title: "Test a Link",
                 subtitle:
-                    "Paste a link to see where Fling would send it. Nothing opens until you click Open Link."
+                    "Type or paste a link to see where Fling would send it. Nothing opens until you click Open Link or press Return."
             )
 
             Divider()
@@ -22,9 +22,11 @@ struct TestLinkSettingsPane: View {
                     // A visible bordered field: the default grouped-form field is borderless and
                     // right-aligned, so it didn't read as somewhere you can type.
                     HStack(spacing: 8) {
+                        // `verbatim` so the placeholder isn't auto-linked into blue text that looks
+                        // like an already-filled-in link.
                         TextField(
                             "Link", text: $linkText,
-                            prompt: Text("https://github.com/username/repo")
+                            prompt: Text(verbatim: "Type or paste a link, e.g. github.com/username")
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -38,6 +40,8 @@ struct TestLinkSettingsPane: View {
                             isLinkFieldFocused = true
                         }
                         .help("Paste a link from the clipboard")
+
+                        openButton
                     }
                 }
 
@@ -72,7 +76,7 @@ struct TestLinkSettingsPane: View {
         if linkText.trimmingCharacters(in: .whitespaces).isEmpty {
             resultRow(
                 symbol: "link",
-                title: "Paste a link above",
+                title: "Enter a link above",
                 detail: "You can leave off https://, for example github.com/username."
             )
         } else if let url = parsedURL {
@@ -89,7 +93,6 @@ struct TestLinkSettingsPane: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    openButton
                 }
             case .presentSelector, .openInChromeIncognito:
                 HStack(spacing: 12) {
@@ -106,7 +109,6 @@ struct TestLinkSettingsPane: View {
                                 .id)
                     }
                     .disabled(coordinator.config.targets.isEmpty)
-                    openButton
                 }
             }
         } else {
@@ -122,6 +124,7 @@ struct TestLinkSettingsPane: View {
         // Return in the link field already opens via onSubmit, so no default-button shortcut.
         Button("Open Link", action: openLink)
             .disabled(parsedURL == nil)
+            .help("Send this link through Fling, exactly as if you'd clicked it in another app")
     }
 
     private func resultRow(symbol: String, title: String, detail: String) -> some View {
