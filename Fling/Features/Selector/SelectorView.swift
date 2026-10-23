@@ -172,13 +172,7 @@ struct SelectorView: View {
                     .padding(.bottom, -6)
                 }
 
-                LazyVGrid(
-                    columns: Array(
-                        repeating: GridItem(.flexible(), spacing: 6),
-                        count: min(max(mainTargets.count, 3), 4)
-                    ),
-                    spacing: 6
-                ) {
+                LazyVGrid(columns: Self.mainColumns(for: mainTargets.count), spacing: 6) {
                     ForEach(Array(mainTargets.enumerated()), id: \.element.id) { index, target in
                         tile(for: target, at: index, compact: false)
                     }
@@ -189,6 +183,15 @@ struct SelectorView: View {
                 }
             }
         }
+    }
+
+    /// Up to three targets get fixed-width tiles, which the grid centres, so one or two browsers
+    /// don't leave an empty slot on the right. Four or more fill the width in rows of four.
+    private static func mainColumns(for count: Int) -> [GridItem] {
+        if count >= 4 {
+            return Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+        }
+        return Array(repeating: GridItem(.fixed(140), spacing: 6), count: max(count, 1))
     }
 
     /// Small, quiet toggle above the main icons for targets marked Under More.
@@ -240,7 +243,9 @@ struct SelectorView: View {
             .padding(.horizontal, 4)
 
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 5),
+                columns: targets.count >= 5
+                    ? Array(repeating: GridItem(.flexible(), spacing: 4), count: 5)
+                    : Array(repeating: GridItem(.fixed(82), spacing: 4), count: targets.count),
                 spacing: 4
             ) {
                 ForEach(Array(targets.enumerated()), id: \.element.id) { index, target in
