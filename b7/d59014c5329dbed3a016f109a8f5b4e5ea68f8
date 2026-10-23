@@ -1,0 +1,58 @@
+CLAUDE.md
+  h_e08a86bb3a33a2 186-187,189,208
+  h_e08a86bb3a33a2 188
+Fling/Domain/Models/BrowserTarget.swift
+  h_e08a86bb3a33a2 10-26,33-36,42-50,65,67-75,89-108
+  s_139eceaebb1552::t_3f80181d1accf6 51-52,109-110
+Fling/Infrastructure/Config/TargetIconStore.swift
+  h_e08a86bb3a33a2 1-116
+Fling/Features/Targets/TargetEditorSheet.swift
+  h_e08a86bb3a33a2 2,10-15,23-24,33-34,37-45,66,72-73,75-76,90-92,151,153-159,185,187-192,195-196,204-208,211-214,218,230,237-343,345
+  s_139eceaebb1552::t_13d43fcba75f89 46-47,186,209-210,215-216,344
+Fling/Infrastructure/System/BrowserDiscovery.swift
+  h_e08a86bb3a33a2 15-17,20-23,25,27,29-52,55-62,64,164
+  s_df5efc9bc97e59::t_dfb1cfa87f27b0 63
+Fling/App/AppCoordinator.swift
+  h_e08a86bb3a33a2 265,280,293,299-303
+  s_139eceaebb1552::t_3f098a4dda9aea 304-305
+Fling/Features/Settings/SettingsComponents.swift
+  h_e08a86bb3a33a2 72-82,85-105,107
+  s_139eceaebb1552::t_509fdeb755a1d0 106
+Fling/Features/Settings/TargetsSettingsPane.swift
+  h_e08a86bb3a33a2 18,113-120,158-162,222-225
+  s_139eceaebb1552::t_90e87bf8175140 163-164,226
+Fling/Features/Selector/SelectorModel.swift
+  h_e08a86bb3a33a2 14,23,28-43,45-56,65,116-120,133-135
+Fling/Features/Selector/SelectorView.swift
+  h_e08a86bb3a33a2 153-155,161-208,210-211,214,220-227,337,342-354,356,359-370,372-394,397,399,410,413,418-437
+  h_e08a86bb3a33a2 126-127,228-233,371
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7d59014c5329dbed3a016f109a8f5b4e5ea68f8",
+  "prompts": {},
+  "humans": {
+    "h_e08a86bb3a33a2": {
+      "author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_139eceaebb1552": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ec10d46-32b0-4467-a161-490400883c84",
+        "model": "unknown"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    },
+    "s_df5efc9bc97e59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfb9beb3-2878-4a94-a1b1-018e6e0e553f",
+        "model": "unknown"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  }
+}
