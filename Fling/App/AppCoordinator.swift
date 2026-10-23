@@ -262,6 +262,7 @@ final class AppCoordinator: ObservableObject {
             updatedConfig.targets.append(target)
             try configStore.save(updatedConfig)
             config = updatedConfig
+            pruneUnusedTargetIcons()
         } catch {
             lastErrorMessage = "Failed to save target: \(error.localizedDescription)"
         }
@@ -276,6 +277,7 @@ final class AppCoordinator: ObservableObject {
             updatedConfig.targets[index] = target
             try configStore.save(updatedConfig)
             config = updatedConfig
+            pruneUnusedTargetIcons()
         } catch {
             lastErrorMessage = "Failed to update target: \(error.localizedDescription)"
         }
@@ -288,9 +290,17 @@ final class AppCoordinator: ObservableObject {
             updatedConfig.rules.removeAll { $0.targetId == id }
             try configStore.save(updatedConfig)
             config = updatedConfig
+            pruneUnusedTargetIcons()
         } catch {
             lastErrorMessage = "Failed to delete target: \(error.localizedDescription)"
         }
+    }
+
+    /// Custom icons are only written when a target is saved, so anything unreferenced after a
+    /// save (replaced, reset or deleted) can go.
+    private func pruneUnusedTargetIcons() {
+        TargetIconStore.removeUnreferenced(
+            keeping: Set(config.targets.compactMap(\.customIconFileName)))
     }
 
     private func drainQueueIfPossible() {

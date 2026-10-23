@@ -183,6 +183,10 @@ Expected primary fields:
 - Target Name
 - Browser
 - Profile directory (for Chromium targets)
+- Icon (optional custom image, app icon, or Chromium profile picture; shown with a small browser badge)
+- In browser picker: Main / Under More / Hidden (`isEnabled` + `showsUnderMore`)
+
+Custom icons are rasterised to 256px PNGs in `~/Library/Application Support/Fling/Icons/` (`TargetIconStore`). They are written only on save, and unreferenced `icon-*.png` files are pruned after target saves/deletes.
 
 Do not expose extra profile fields unless there is a strong reason.
 The desired mental model is simple.
@@ -201,6 +205,7 @@ Do not surface raw generated ids as the primary label in UI.
 Expected behavior:
 - dedicated small translucent panel
 - large icons for configured targets
+- targets marked Under More sit behind a `More` tile (key `M`) that expands a compact row
 - explicit `Open in Chrome Incognito` action when Chrome is installed
 - `Retry Chrome Incognito` label when the current selector context originated from force-incognito handling
 - centered Add Rule button

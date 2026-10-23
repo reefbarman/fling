@@ -15,7 +15,7 @@ struct TargetsSettingsPane: View {
             SettingsPaneHeader(
                 title: "Targets",
                 subtitle:
-                    "The browsers and profiles links can open in. They appear in the browser picker in this order, and turned-off targets are hidden from it. Drag to reorder."
+                    "The browsers and profiles links can open in. They appear in the browser picker in this order, rarely used ones can sit under More, and turned-off targets are hidden. Drag to reorder."
             ) {
                 Button {
                     isShowingAddTarget = true
@@ -110,6 +110,14 @@ struct TargetsSettingsPane: View {
                     Button(target.isEnabled ? "Turn Off" : "Turn On") {
                         setEnabled(!target.isEnabled, for: target)
                     }
+                    switch target.pickerPlacement {
+                    case .main:
+                        Button("Move Under More") { setPlacement(.more, for: target) }
+                    case .more:
+                        Button("Move to Main") { setPlacement(.main, for: target) }
+                    case .hidden:
+                        EmptyView()
+                    }
                     Divider()
                     Button("Delete", role: .destructive) { pendingDeletion = target }
                 }
@@ -145,6 +153,13 @@ struct TargetsSettingsPane: View {
     private func setEnabled(_ isEnabled: Bool, for target: BrowserTarget) {
         var updated = target
         updated.isEnabled = isEnabled
+        coordinator.updateTarget(updated)
+    }
+
+    private func setPlacement(_ placement: BrowserTarget.PickerPlacement, for target: BrowserTarget)
+    {
+        var updated = target
+        updated.pickerPlacement = placement
         coordinator.updateTarget(updated)
     }
 }
@@ -204,7 +219,11 @@ private struct TargetRow: View {
         case 1: parts.append("1 rule")
         default: parts.append("\(ruleCount) rules")
         }
-        if !target.isEnabled { parts.append("Hidden from picker") }
+        switch target.pickerPlacement {
+        case .main: break
+        case .more: parts.append("Under More")
+        case .hidden: parts.append("Hidden from picker")
+        }
         return parts.joined(separator: " · ")
     }
 }

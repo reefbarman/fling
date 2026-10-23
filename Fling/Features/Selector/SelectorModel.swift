@@ -11,6 +11,7 @@ final class SelectorModel: ObservableObject {
     @Published var remembersChoice = false
     @Published var rememberedDomain = ""
     @Published var isShowingRuleCreation = false
+    @Published private(set) var isMoreExpanded = false
     @Published private(set) var domainCandidates: [String] = []
 
     private var preparedContextID: UUID?
@@ -19,12 +20,40 @@ final class SelectorModel: ObservableObject {
         self.coordinator = coordinator
     }
 
+    /// Every target that can be picked, including the ones under More.
     var targets: [BrowserTarget] {
         coordinator.config.targets.filter(\.isEnabled)
     }
 
+    /// Targets shown straight away. If everything is under More, show it all rather than an
+    /// empty picker.
+    var mainTargets: [BrowserTarget] {
+        let main = targets.filter { !$0.showsUnderMore }
+        return main.isEmpty ? targets : main
+    }
+
+    var moreTargets: [BrowserTarget] {
+        mainTargets.count == targets.count ? [] : targets.filter(\.showsUnderMore)
+    }
+
+    /// Targets currently on screen, in keyboard/number-shortcut order.
+    var visibleTargets: [BrowserTarget] {
+        isMoreExpanded ? mainTargets + moreTargets : mainTargets
+    }
+
     var highlightedTarget: BrowserTarget? {
-        targets.indices.contains(highlightedIndex) ? targets[highlightedIndex] : nil
+        let visible = visibleTargets
+        return visible.indices.contains(highlightedIndex) ? visible[highlightedIndex] : nil
+    }
+
+    func toggleMore() {
+        guard !moreTargets.isEmpty else { return }
+        isMoreExpanded.toggle()
+        if isMoreExpanded {
+            highlightedIndex = mainTargets.count
+        } else if highlightedIndex >= mainTargets.count {
+            highlightedIndex = 0
+        }
     }
 
     func prepare(for context: IncomingURLContext) {
@@ -33,6 +62,7 @@ final class SelectorModel: ObservableObject {
         highlightedIndex = 0
         remembersChoice = false
         isShowingRuleCreation = false
+        isMoreExpanded = false
         domainCandidates = Self.domainCandidates(for: context.originalURL)
         rememberedDomain = domainCandidates.first ?? ""
     }
@@ -83,8 +113,11 @@ final class SelectorModel: ObservableObject {
         case 53:  // escape
             dismiss()
         default:
-            if let digit = Int(characters), (1...9).contains(digit), digit <= targets.count {
-                open(targets[digit - 1])
+            let visible = visibleTargets
+            if let digit = Int(characters), (1...9).contains(digit), digit <= visible.count {
+                open(visible[digit - 1])
+            } else if characters == "m", !moreTargets.isEmpty {
+                toggleMore()
             } else if characters == "r", !rememberedDomain.isEmpty {
                 remembersChoice.toggle()
             } else if characters == "i" {
@@ -97,8 +130,9 @@ final class SelectorModel: ObservableObject {
     }
 
     private func moveHighlight(by delta: Int) {
-        guard !targets.isEmpty else { return }
-        highlightedIndex = (highlightedIndex + delta + targets.count) % targets.count
+        let count = visibleTargets.count
+        guard count > 0 else { return }
+        highlightedIndex = (highlightedIndex + delta + count) % count
     }
 
     /// Candidate domains for a "remember" rule, most specific first, e.g.

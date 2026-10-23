@@ -123,7 +123,8 @@ struct SelectorView: View {
 
     private var notice: String? {
         if coordinator.isActiveSelectorContextIncognitoUnavailable {
-            return "⌥ requested Chrome Incognito, but Google Chrome isn't installed. Pick a browser instead."
+            return
+                "⌥ requested Chrome Incognito, but Google Chrome isn't installed. Pick a browser instead."
         }
         if let message = coordinator.lastErrorMessage, !message.isEmpty {
             return message
@@ -149,33 +150,84 @@ struct SelectorView: View {
 
     @ViewBuilder
     private var targetGrid: some View {
-        let targets = model.targets
-        if targets.isEmpty {
+        let mainTargets = model.mainTargets
+        let moreTargets = model.moreTargets
+        if mainTargets.isEmpty {
             Text("No browsers configured. Add one in Settings.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 80)
         } else {
-            LazyVGrid(
-                columns: Array(
-                    repeating: GridItem(.flexible(), spacing: 6),
-                    count: min(max(targets.count, 3), 4)
-                ),
-                spacing: 6
-            ) {
-                ForEach(Array(targets.enumerated()), id: \.element.id) { index, target in
-                    SelectorTargetTile(
-                        target: target,
-                        shortcut: index < 9 ? "\(index + 1)" : nil,
-                        isHighlighted: index == model.highlightedIndex
-                    ) {
-                        model.open(target)
+            let showsMoreTile = !moreTargets.isEmpty && !model.isMoreExpanded
+            VStack(spacing: 8) {
+                LazyVGrid(
+                    columns: Array(
+                        repeating: GridItem(.flexible(), spacing: 6),
+                        count: min(max(mainTargets.count + (showsMoreTile ? 1 : 0), 3), 4)
+                    ),
+                    spacing: 6
+                ) {
+                    ForEach(Array(mainTargets.enumerated()), id: \.element.id) { index, target in
+                        tile(for: target, at: index, compact: false)
                     }
-                    .onHover { hovering in
-                        if hovering { model.highlightedIndex = index }
+                    if showsMoreTile {
+                        SelectorMoreTile(targets: moreTargets) { model.toggleMore() }
                     }
                 }
+
+                if model.isMoreExpanded {
+                    moreSection(moreTargets, startingAt: mainTargets.count)
+                }
             }
+        }
+    }
+
+    private func moreSection(_ targets: [BrowserTarget], startingAt offset: Int) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Text("More")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.1))
+                    .frame(height: 0.5)
+                Button {
+                    model.toggleMore()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Show less")
+                        KeyCap("M")
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 4)
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 5),
+                spacing: 4
+            ) {
+                ForEach(Array(targets.enumerated()), id: \.element.id) { index, target in
+                    tile(for: target, at: offset + index, compact: true)
+                }
+            }
+        }
+    }
+
+    private func tile(for target: BrowserTarget, at index: Int, compact: Bool) -> some View {
+        SelectorTargetTile(
+            target: target,
+            shortcut: index < 9 ? "\(index + 1)" : nil,
+            isHighlighted: index == model.highlightedIndex,
+            compact: compact
+        ) {
+            model.open(target)
+        }
+        .onHover { hovering in
+            if hovering { model.highlightedIndex = index }
         }
     }
 
@@ -282,35 +334,71 @@ private struct SelectorTargetTile: View {
     let target: BrowserTarget
     let shortcut: String?
     let isHighlighted: Bool
+    var compact = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Group {
-                    if let icon = target.icon {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .interpolation(.high)
-                            .scaledToFit()
-                    } else {
-                        Image(systemName: "globe")
-                            .font(.system(size: 30))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: 52, height: 52)
-                .scaleEffect(isHighlighted ? 1.06 : 1)
+            VStack(spacing: compact ? 4 : 6) {
+                TargetIconView(target: target)
+                    .frame(width: compact ? 34 : 52, height: compact ? 34 : 52)
+                    .scaleEffect(isHighlighted ? 1.06 : 1)
 
                 VStack(spacing: 1) {
                     Text(target.displayName)
-                        .font(.system(size: 12.5, weight: .semibold))
+                        .font(.system(size: compact ? 11 : 12.5, weight: .semibold))
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Text(target.subtitle.isEmpty ? " " : target.subtitle)
+                    if !compact {
+                        Text(target.subtitle.isEmpty ? " " : target.subtitle)
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, compact ? 10 : 12)
+            .padding(.bottom, compact ? 7 : 10)
+            .padding(.horizontal, compact ? 4 : 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isHighlighted ? Color.accentColor.opacity(0.18) : Color.clear)
+            )
+            .overlay(alignment: .topTrailing) {
+                if let shortcut {
+                    KeyCap(shortcut).padding(compact ? 4 : 6)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .animation(.easeOut(duration: 0.12), value: isHighlighted)
+        }
+        .buttonStyle(.plain)
+        .help(
+            target.subtitle.isEmpty
+                ? target.displayName : "\(target.displayName) — \(target.subtitle)")
+    }
+}
+
+/// Last tile in the main grid: a small cluster of the hidden targets' icons that expands them.
+private struct SelectorMoreTile: View {
+    let targets: [BrowserTarget]
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                iconCluster
+                    .frame(width: 52, height: 52)
+
+                VStack(spacing: 1) {
+                    Text("More")
+                        .font(.system(size: 12.5, weight: .semibold))
+                    Text("\(targets.count) more")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -319,18 +407,34 @@ private struct SelectorTargetTile: View {
             .padding(.horizontal, 6)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isHighlighted ? Color.accentColor.opacity(0.18) : Color.clear)
+                    .fill(Color.primary.opacity(isHovering ? 0.07 : 0))
             )
             .overlay(alignment: .topTrailing) {
-                if let shortcut {
-                    KeyCap(shortcut).padding(6)
-                }
+                KeyCap("M").padding(6)
             }
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .animation(.easeOut(duration: 0.12), value: isHighlighted)
         }
         .buttonStyle(.plain)
-        .help(target.subtitle.isEmpty ? target.displayName : "\(target.displayName) — \(target.subtitle)")
+        .onHover { isHovering = $0 }
+        .help("Show " + targets.map(\.displayName).joined(separator: ", "))
+    }
+
+    /// Up to four mini icons in a 2×2 grid, like a folder on the iPhone home screen.
+    private var iconCluster: some View {
+        let shown = Array(targets.prefix(4))
+        return RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.primary.opacity(0.07))
+            .overlay {
+                LazyVGrid(
+                    columns: [GridItem(.fixed(20), spacing: 4), GridItem(.fixed(20), spacing: 4)],
+                    spacing: 4
+                ) {
+                    ForEach(shown) { target in
+                        TargetIconView(target: target)
+                            .frame(width: 20, height: 20)
+                    }
+                }
+            }
     }
 }
 

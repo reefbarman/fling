@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct TargetEditorInput {
     var id: String?
@@ -6,7 +7,12 @@ struct TargetEditorInput {
     var bundleIdentifier: String
     var applicationName: String
     var chromeProfileDirectory: String
-    var isEnabled: Bool
+    var pickerPlacement: BrowserTarget.PickerPlacement
+    /// The saved custom icon, cleared when the user resets to the browser icon.
+    var customIconFileName: String?
+    /// A newly chosen icon, written to disk only when the target is saved.
+    var pendingIcon: NSImage?
+    var pendingIconIsCircular = false
 
     init(app: InstalledBrowserApp, chromeProfile: DiscoveredChromeProfile?) {
         self.id = nil
@@ -14,7 +20,8 @@ struct TargetEditorInput {
         self.bundleIdentifier = app.bundleIdentifier
         self.applicationName = app.name
         self.chromeProfileDirectory = chromeProfile?.profileDirectory ?? ""
-        self.isEnabled = true
+        self.pickerPlacement = .main
+        self.customIconFileName = nil
     }
 
     init(target: BrowserTarget) {
@@ -23,10 +30,21 @@ struct TargetEditorInput {
         self.bundleIdentifier = target.bundleIdentifier
         self.applicationName = target.applicationName
         self.chromeProfileDirectory = target.profile?.profileDirectory ?? ""
-        self.isEnabled = target.isEnabled
+        self.pickerPlacement = target.pickerPlacement
+        self.customIconFileName = target.customIconFileName
     }
 
-    func makeTarget(using chromeProfiles: [DiscoveredChromeProfile]) -> BrowserTarget {
+    var hasCustomIcon: Bool {
+        pendingIcon != nil || customIconFileName != nil
+    }
+
+    var previewIcon: NSImage? {
+        pendingIcon ?? customIconFileName.flatMap(TargetIconStore.image(named:))
+    }
+
+    func makeTarget(using chromeProfiles: [DiscoveredChromeProfile], iconFileName: String?)
+        -> BrowserTarget
+    {
         let profile: BrowserTarget.ChromeProfile?
         if ChromiumSupport.supportsProfiles(bundleIdentifier: bundleIdentifier)
             && !chromeProfileDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -45,14 +63,17 @@ struct TargetEditorInput {
             profile = nil
         }
 
-        return BrowserTarget(
+        var target = BrowserTarget(
             id: id ?? "target-\(UUID().uuidString.lowercased())",
             displayName: displayName.trimmingCharacters(in: .whitespacesAndNewlines),
             bundleIdentifier: bundleIdentifier,
             applicationName: applicationName,
             profile: profile,
-            isEnabled: isEnabled
+            isEnabled: true,
+            customIconFileName: iconFileName
         )
+        target.pickerPlacement = pickerPlacement
+        return target
     }
 }
 
@@ -66,6 +87,9 @@ struct TargetEditorSheet: View {
     @State private var selectedBrowserID: String
     @State private var input: TargetEditorInput
     @State private var chromeProfiles: [DiscoveredChromeProfile] = []
+    @State private var profilePicture: NSImage?
+    @State private var isIconDropTargeted = false
+    @State private var iconError: String?
 
     init(
         browserApps: [InstalledBrowserApp],
@@ -124,14 +148,15 @@ struct TargetEditorSheet: View {
                         guard let app = browserApps.first(where: { $0.id == newValue }) else {
                             return
                         }
-                        let previousEnabled = input.isEnabled
-                        let previousID = input.id
-                        let previousDisplayName = input.displayName
+                        let previous = input
                         input = TargetEditorInput(app: app, chromeProfile: nil)
-                        input.id = previousID
-                        input.isEnabled = previousEnabled
-                        if !previousDisplayName.isEmpty {
-                            input.displayName = previousDisplayName
+                        input.id = previous.id
+                        input.pickerPlacement = previous.pickerPlacement
+                        input.customIconFileName = previous.customIconFileName
+                        input.pendingIcon = previous.pendingIcon
+                        input.pendingIconIsCircular = previous.pendingIconIsCircular
+                        if !previous.displayName.isEmpty {
+                            input.displayName = previous.displayName
                         }
                         reloadChromeProfiles()
                     }
@@ -157,13 +182,18 @@ struct TargetEditorSheet: View {
                         }
                     }
 
-                    Toggle("Show in browser picker", isOn: $input.isEnabled)
+                    iconRow
+
+                    Picker("In browser picker", selection: $input.pickerPlacement) {
+                        ForEach(BrowserTarget.PickerPlacement.allCases) { placement in
+                            Text(placement.title).tag(placement)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 } header: {
                     HStack(spacing: 10) {
-                        if let selectedApp {
-                            Image(nsImage: selectedApp.icon)
-                                .resizable()
-                                .frame(width: 28, height: 28)
+                        if selectedApp != nil {
+                            iconPreview.frame(width: 28, height: 28)
                         }
                         Text(initialTarget == nil ? "Add Target" : "Edit Target")
                             .font(.title3)
@@ -171,11 +201,21 @@ struct TargetEditorSheet: View {
                             .foregroundStyle(.primary)
                     }
                 } footer: {
-                    if selectedApp?.supportsChromeProfiles == true {
-                        Text(profileHelp)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let iconError {
+                            Text(iconError)
+                                .foregroundStyle(.red)
+                        }
+                        if selectedApp?.supportsChromeProfiles == true {
+                            Text(profileHelp)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(
+                            "Under More keeps rarely used targets out of the way until you click More (or press M) in the picker."
+                        )
+                        .foregroundStyle(.secondary)
                     }
+                    .font(.caption)
                 }
             }
             .formStyle(.grouped)
@@ -187,15 +227,122 @@ struct TargetEditorSheet: View {
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                 Button(initialTarget == nil ? "Add Target" : "Save Changes") {
-                    onSave(input.makeTarget(using: chromeProfiles))
+                    save()
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(input.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(16)
         }
-        .frame(width: 500, height: 340)
-        .onAppear(perform: reloadChromeProfiles)
+        .frame(width: 520, height: 460)
+        .onAppear {
+            reloadChromeProfiles()
+            reloadProfilePicture()
+        }
+        .onChange(of: input.chromeProfileDirectory) { _, _ in reloadProfilePicture() }
+        .onChange(of: selectedBrowserID) { _, _ in reloadProfilePicture() }
+    }
+
+    // MARK: - Icon
+
+    private var iconPreview: some View {
+        TargetIconImage(icon: input.previewIcon, appIcon: selectedApp?.icon)
+    }
+
+    private var iconRow: some View {
+        LabeledContent("Icon") {
+            HStack(spacing: 10) {
+                iconPreview
+                    .frame(width: 36, height: 36)
+                    .padding(4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(
+                                isIconDropTargeted
+                                    ? Color.accentColor : Color.secondary.opacity(0.3),
+                                style: StrokeStyle(lineWidth: isIconDropTargeted ? 2 : 1, dash: [3])
+                            )
+                    )
+                    .dropDestination(for: URL.self) { urls, _ in
+                        guard let url = urls.first(where: \.isFileURL) else { return false }
+                        return useIcon(from: url)
+                    } isTargeted: {
+                        isIconDropTargeted = $0
+                    }
+                    .help("Drop an image or app here")
+
+                Button("Choose…") { chooseIcon() }
+
+                if let profilePicture {
+                    Button("Use Profile Picture") {
+                        setPendingIcon(profilePicture, circular: true)
+                    }
+                }
+
+                if input.hasCustomIcon {
+                    Button("Reset") {
+                        input.pendingIcon = nil
+                        input.customIconFileName = nil
+                        iconError = nil
+                    }
+                    .help("Go back to the browser's own icon")
+                }
+            }
+        }
+    }
+
+    private func chooseIcon() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an Icon"
+        panel.message = "Pick an image (PNG, JPEG, SVG, ICNS…) or an app to borrow its icon."
+        panel.allowedContentTypes = [.image, .application]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.treatsFilePackagesAsDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        useIcon(from: url)
+    }
+
+    @discardableResult
+    private func useIcon(from url: URL) -> Bool {
+        guard let image = TargetIconStore.loadImage(from: url) else {
+            iconError = "Couldn't read an image from “\(url.lastPathComponent)”."
+            return false
+        }
+        setPendingIcon(image, circular: false)
+        return true
+    }
+
+    private func setPendingIcon(_ image: NSImage, circular: Bool) {
+        input.pendingIcon = image
+        input.pendingIconIsCircular = circular
+        iconError = nil
+    }
+
+    private func reloadProfilePicture() {
+        guard let selectedApp, selectedApp.supportsChromeProfiles else {
+            profilePicture = nil
+            return
+        }
+        profilePicture = ChromiumSupport.profilePicture(
+            bundleIdentifier: selectedApp.bundleIdentifier,
+            profileDirectory: input.chromeProfileDirectory.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+        )
+    }
+
+    private func save() {
+        var iconFileName = input.customIconFileName
+        if let pendingIcon = input.pendingIcon {
+            do {
+                iconFileName = try TargetIconStore.importImage(
+                    pendingIcon, circular: input.pendingIconIsCircular)
+            } catch {
+                iconError = "Couldn't save the icon: \(error.localizedDescription)"
+                return
+            }
+        }
+        onSave(input.makeTarget(using: chromeProfiles, iconFileName: iconFileName))
     }
 
     private var selectedApp: InstalledBrowserApp? {

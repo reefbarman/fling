@@ -69,9 +69,42 @@ struct TargetIconView: View {
     let target: BrowserTarget
 
     var body: some View {
-        if let icon = target.icon {
+        TargetIconImage(icon: target.customIcon, appIcon: target.appIcon)
+    }
+}
+
+/// A custom icon with a small browser badge in the corner, or just the browser icon.
+struct TargetIconImage: View {
+    let icon: NSImage?
+    let appIcon: NSImage?
+
+    var body: some View {
+        if let icon {
             Image(nsImage: icon)
                 .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .overlay {
+                    GeometryReader { geometry in
+                        let side = geometry.size.width * 0.42
+                        if let appIcon, geometry.size.width >= 24 {
+                            Image(nsImage: appIcon)
+                                .resizable()
+                                .interpolation(.high)
+                                .frame(width: side, height: side)
+                                .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                                .frame(
+                                    maxWidth: .infinity, maxHeight: .infinity,
+                                    alignment: .bottomTrailing
+                                )
+                                .offset(x: side * 0.12, y: side * 0.12)
+                        }
+                    }
+                }
+        } else if let appIcon {
+            Image(nsImage: appIcon)
+                .resizable()
+                .interpolation(.high)
                 .scaledToFit()
         } else {
             Image(systemName: "globe")
