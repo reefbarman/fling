@@ -1,0 +1,25 @@
+Fling/Features/Selector/SelectorView.swift
+  h_e08a86bb3a33a2 175,188-194,246-248
+  s_ac4cc5db00ea20::t_7b40899e49bf3d 195-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91345e915919f8d2562f1ac99f5884e1c0499362",
+  "prompts": {},
+  "humans": {
+    "h_e08a86bb3a33a2": {
+      "author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_ac4cc5db00ea20": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1aaacb3-9e6c-4657-9c61-a7d8912749ba",
+        "model": "unknown"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  }
+}
