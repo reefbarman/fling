@@ -5,6 +5,7 @@ struct TestLinkSettingsPane: View {
 
     @State private var linkText = ""
     @State private var ruleEditorInput: RuleCreationInput?
+    @FocusState private var isLinkFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,11 +19,26 @@ struct TestLinkSettingsPane: View {
 
             Form {
                 Section {
-                    TextField(
-                        "Link", text: $linkText,
-                        prompt: Text("https://github.com/username/repo")
-                    )
-                    .onSubmit(openLink)
+                    // A visible bordered field: the default grouped-form field is borderless and
+                    // right-aligned, so it didn't read as somewhere you can type.
+                    HStack(spacing: 8) {
+                        TextField(
+                            "Link", text: $linkText,
+                            prompt: Text("https://github.com/username/repo")
+                        )
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isLinkFieldFocused)
+                        .onSubmit(openLink)
+
+                        Button("Paste") {
+                            if let value = NSPasteboard.general.string(forType: .string) {
+                                linkText = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            }
+                            isLinkFieldFocused = true
+                        }
+                        .help("Paste a link from the clipboard")
+                    }
                 }
 
                 Section("Result") {
@@ -35,6 +51,7 @@ struct TestLinkSettingsPane: View {
             }
             .formStyle(.grouped)
         }
+        .onAppear { isLinkFieldFocused = true }
         .sheet(item: $ruleEditorInput) { input in
             RuleEditorSheet(
                 targets: coordinator.config.targets,

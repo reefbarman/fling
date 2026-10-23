@@ -80,27 +80,38 @@ struct TargetIconImage: View {
 
     var body: some View {
         if let icon {
-            Image(nsImage: icon)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .overlay {
-                    GeometryReader { geometry in
-                        let side = geometry.size.width * 0.42
-                        if let appIcon, geometry.size.width >= 24 {
-                            Image(nsImage: appIcon)
-                                .resizable()
-                                .interpolation(.high)
-                                .frame(width: side, height: side)
-                                .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
-                                .frame(
-                                    maxWidth: .infinity, maxHeight: .infinity,
-                                    alignment: .bottomTrailing
-                                )
-                                .offset(x: side * 0.12, y: side * 0.12)
-                        }
+            GeometryReader { geometry in
+                let side = min(geometry.size.width, geometry.size.height)
+                // Match the macOS app icon grid: an 824/1024 tile with ~22.5% continuous corners,
+                // so custom icons sit at the same size and shape as Safari or Chrome.
+                let tile = side * 0.805
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFill()
+                    .frame(width: tile, height: tile)
+                    .clipShape(RoundedRectangle(cornerRadius: tile * 0.225, style: .continuous))
+                    .shadow(color: .black.opacity(0.22), radius: side * 0.02, y: side * 0.01)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                GeometryReader { geometry in
+                    let side = geometry.size.width * 0.42
+                    if let appIcon, geometry.size.width >= 24 {
+                        Image(nsImage: appIcon)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: side, height: side)
+                            .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                            .frame(
+                                maxWidth: .infinity, maxHeight: .infinity,
+                                alignment: .bottomTrailing
+                            )
+                            .offset(x: side * 0.08, y: side * 0.08)
                     }
                 }
+            }
         } else if let appIcon {
             Image(nsImage: appIcon)
                 .resizable()
