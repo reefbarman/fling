@@ -104,15 +104,19 @@ struct SelectorView: View {
         }
     }
 
-    private func iconButton(_ systemName: String, help: String, action: @escaping () -> Void)
-        -> some View
-    {
+    private func iconButton(
+        _ systemName: String, help: String, isActive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
                 .frame(width: 26, height: 26)
-                .background(Color.primary.opacity(0.06), in: Circle())
+                .background(
+                    isActive ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.06),
+                    in: Circle()
+                )
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -158,20 +162,25 @@ struct SelectorView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 80)
         } else {
-            let showsMoreTile = !moreTargets.isEmpty && !model.isMoreExpanded
             VStack(spacing: 8) {
+                if !moreTargets.isEmpty {
+                    HStack {
+                        Spacer()
+                        moreButton(moreTargets)
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.bottom, -6)
+                }
+
                 LazyVGrid(
                     columns: Array(
                         repeating: GridItem(.flexible(), spacing: 6),
-                        count: min(max(mainTargets.count + (showsMoreTile ? 1 : 0), 3), 4)
+                        count: min(max(mainTargets.count, 3), 4)
                     ),
                     spacing: 6
                 ) {
                     ForEach(Array(mainTargets.enumerated()), id: \.element.id) { index, target in
                         tile(for: target, at: index, compact: false)
-                    }
-                    if showsMoreTile {
-                        SelectorMoreTile(targets: moreTargets) { model.toggleMore() }
                     }
                 }
 
@@ -180,6 +189,30 @@ struct SelectorView: View {
                 }
             }
         }
+    }
+
+    /// Small, quiet toggle above the main icons for targets marked Under More.
+    private func moreButton(_ targets: [BrowserTarget]) -> some View {
+        let isActive = model.isMoreExpanded
+        return Button {
+            model.toggleMore()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                .frame(width: 24, height: 16)
+                .background(
+                    isActive ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.06),
+                    in: Capsule()
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(
+            isActive
+                ? "Hide other browsers (M)"
+                : "More browsers: " + targets.map(\.displayName).joined(separator: ", ") + " (M)"
+        )
     }
 
     private func moreSection(_ targets: [BrowserTarget], startingAt offset: Int) -> some View {
@@ -377,64 +410,6 @@ private struct SelectorTargetTile: View {
         .help(
             target.subtitle.isEmpty
                 ? target.displayName : "\(target.displayName) — \(target.subtitle)")
-    }
-}
-
-/// Last tile in the main grid: a small cluster of the hidden targets' icons that expands them.
-private struct SelectorMoreTile: View {
-    let targets: [BrowserTarget]
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                iconCluster
-                    .frame(width: 52, height: 52)
-
-                VStack(spacing: 1) {
-                    Text("More")
-                        .font(.system(size: 12.5, weight: .semibold))
-                    Text("\(targets.count) more")
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.primary.opacity(isHovering ? 0.07 : 0))
-            )
-            .overlay(alignment: .topTrailing) {
-                KeyCap("M").padding(6)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
-        .help("Show " + targets.map(\.displayName).joined(separator: ", "))
-    }
-
-    /// Up to four mini icons in a 2×2 grid, like a folder on the iPhone home screen.
-    private var iconCluster: some View {
-        let shown = Array(targets.prefix(4))
-        return RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.primary.opacity(0.07))
-            .overlay {
-                LazyVGrid(
-                    columns: [GridItem(.fixed(20), spacing: 4), GridItem(.fixed(20), spacing: 4)],
-                    spacing: 4
-                ) {
-                    ForEach(shown) { target in
-                        TargetIconView(target: target)
-                            .frame(width: 20, height: 20)
-                    }
-                }
-            }
     }
 }
 

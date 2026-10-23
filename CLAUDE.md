@@ -205,7 +205,7 @@ Do not surface raw generated ids as the primary label in UI.
 Expected behavior:
 - dedicated small translucent panel
 - large icons for configured targets
-- targets marked Under More sit behind a `More` tile (key `M`) that expands a compact row
+- targets marked Under More sit behind a small `…` button above the main icons (key `M`) that expands a compact row
 - explicit `Open in Chrome Incognito` action when Chrome is installed
 - `Retry Chrome Incognito` label when the current selector context originated from force-incognito handling
 - centered Add Rule button
