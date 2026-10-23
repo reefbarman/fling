@@ -1,0 +1,27 @@
+Fling/Features/Settings/SettingsComponents.swift
+  h_e08a86bb3a33a2 83-87,90-97,111,114
+  s_8420d1a525fc5c::t_797407eb5e8108 88-89,98-110
+Fling/Features/Settings/TestLinkSettingsPane.swift
+  h_e08a86bb3a33a2 8,22-41,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f00744d20afe5fa4d062f9dbb7eb059d5a71be2",
+  "prompts": {},
+  "humans": {
+    "h_e08a86bb3a33a2": {
+      "author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_8420d1a525fc5c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "76e3253d-0999-4d9d-acac-1f1cd46046be",
+        "model": "unknown"
+      },
+      "human_author": "Tristan Cartledge <tristan.cartledge@gmail.com>"
+    }
+  }
+}
